@@ -9,17 +9,18 @@ import {
   Button,
   Card,
   CardBody,
-  CardFooter,
-  Divider,
   Input,
   Select,
   SelectItem,
   Spinner,
   Tooltip,
 } from "@nextui-org/react";
+import { supabase } from '../app/lib/supabaseClient';
+import AddSession from './AddSession';
 import { Microphone, MicrophoneStage } from "@phosphor-icons/react";
 import { useChat } from "ai/react";
 import clsx from "clsx";
+import { useAuth } from '@/app/hooks/useAuth';
 import OpenAI from "openai";
 import { useEffect, useRef, useState } from "react";
 import InteractiveAvatarTextInput from "./InteractiveAvatarTextInput";
@@ -46,7 +47,9 @@ export default function InteractiveAvatar() {
   const audioChunks = useRef<Blob[]>([]);
   const minutes = Math.floor(time / 60).toString().padStart(2, '0');
   const seconds = (time % 60).toString().padStart(2, '0');
-  const sessionList = ['List Item 1', 'List Item 2', 'List Item 3', 'List Item 4'];
+  const [dialogOpen, setDialogOpen] = useState<boolean>(false);
+  const { user, loading, logout } = useAuth();
+  const sessionList = ['Session 1', 'Session 2', 'Session 3', 'Session 4'];
   const historyList = ['List Item 1', 'List Item 2', 'List Item 3', 'List Item 4'];
   const { input, setInput, handleSubmit } = useChat({
     onFinish: async (message) => {
@@ -189,6 +192,7 @@ export default function InteractiveAvatar() {
       };
     }
   }, [mediaStream, stream]);
+
   function startRecording() {
     navigator.mediaDevices
       .getUserMedia({ audio: true })
@@ -212,6 +216,7 @@ export default function InteractiveAvatar() {
         alert("Error accessing microphone");
       });
   }
+
   function stopRecording() {
     if (mediaRecorder.current) {
       mediaRecorder.current.stop();
@@ -243,12 +248,28 @@ export default function InteractiveAvatar() {
       console.error("Error transcribing audio:", error);
     }
   }
+  function addChannel() {
+    setDialogOpen(true);
+  }
+  async function handleLogout() {
+    try {
+      await logout(); // Call the logout function
+      // Optionally navigate or show a success message
+    } catch (error) {
+      console.error('Error logging out:', error);
+      // Optionally show an error message to the user
+    }
+  };
+
+
+
   useEffect(() => {
     if (!input)
       return;
     console.log('*** input', input);
     handleSubmit();
   }, [input]);
+
   useEffect(() => {
     let timerInterval: NodeJS.Timeout | null = null;
     if (recording) {
@@ -272,27 +293,26 @@ export default function InteractiveAvatar() {
       {stream ? (
         <>
           <div className="flex flex-col md:flex-row w-[90%] h-full mx-auto">
-            <div className="w-full md:w-[18%] h-full flex-shrink-0">
+            <div className="w-full md:w-[18%] h-full flex-shrink-0 bg-black text-white">
               <div className="w-full h-[20%] flex text-left justify-center">
                 <div className="m-auto w-full">
-                  <p className="text-4xl">9:50</p>
-                  <p className="text-2xl">buy more time</p>
+                  <p className="text-4xl font-bold">9:50</p>
+                  <p className="text-2xl italic">buy more time</p>
                 </div>
               </div>
               <div className="flex justify-center mb-4">
-                <Button className="bg-blue-500 text-white font-bold py-2 px-4 rounded-xl hover:bg-blue-700 transition duration-300">
+                <Button className="bg-blue-600 text-white font-bold py-2 px-4 rounded-xl hover:bg-blue-800 transition duration-300 shadow-lg">
                   Add Session
                 </Button>
               </div>
-              <div className="bg-slate-700 rounded-2xl h-[50%]">
+              <div className="bg-gray-800 rounded-2xl h-[50%] shadow-lg">
                 <ul className="w-full mt-auto text-white px-6 py-4 space-y-2">
                   {sessionList.map((item, index) => (
-                    <li key={index} className="hover:text-blue-300 cursor-pointer">{item}</li>
+                    <li key={index} className="hover:text-blue-400 cursor-pointer transition duration-200">{item}</li>
                   ))}
                 </ul>
               </div>
             </div>
-
             <div className="w-full md:w-[64%] h-full flex flex-col items-center bg-black">
               <div className="flex flex-col items-center justify-center mt-16">
                 <p className="font-bold text-5xl text-center">AI Branding Expert</p>
@@ -333,11 +353,16 @@ export default function InteractiveAvatar() {
               </div>
             </div>
 
-            <div className="w-full md:w-[18%] h-full flex-shrink-0">
+            <div className="w-full md:w-[18%] h-full flex-shrink-0 bg-black text-white">
               <div className="w-full h-[20%] flex text-right justify-center">
                 <div className="m-auto w-full">
-                  <p className="text-4xl">John Travolta</p>
-                  <p className="text-2xl">log out</p>
+                  <p className="text-4xl font-bold">John Travolta</p>
+                  <button
+                    onClick={handleLogout}
+                    className="text-2xl underline hover:text-blue-300 transition duration-300"
+                  >
+                    Log Out
+                  </button>
                 </div>
               </div>
               <div className="mb-4">
@@ -355,10 +380,38 @@ export default function InteractiveAvatar() {
                   }}
                   setInput={setInput}
                   loading={isLoadingChat}
+                  endContent={
+                    <Tooltip
+                      content={!recording ? "Start recording" : "Stop recording"}
+                    >
+                      <Button
+                        onClick={!recording ? startRecording : stopRecording}
+                        isDisabled={!stream}
+                        isIconOnly
+                        className={clsx(
+                          "mr-4 text-white",
+                          !recording
+                            ? "bg-gradient-to-tr from-indigo-500 to-indigo-300"
+                            : ""
+                        )}
+                        size="sm"
+                        variant="shadow"
+                      >
+                        {!recording ? (
+                          <Microphone size={20} />
+                        ) : (
+                          <>
+                            <div className="absolute h-full w-full bg-gradient-to-tr from-indigo-500 to-indigo-300 animate-pulse -z-10"></div>
+                            <MicrophoneStage size={20} />
+                          </>
+                        )}
+                      </Button>
+                    </Tooltip>
+                  }
                   disabled={!stream}
                 />
               </div>
-              <div className="bg-slate-700 rounded-2xl h-[50%]">
+              <div className="bg-slate-800 rounded-2xl h-[50%]">
                 <ul className="w-full mt-auto text-white px-6 py-4 space-y-2">
                   {historyList.map((item, index) => (
                     <li key={index} className="hover:text-blue-300 cursor-pointer">{item}</li>
@@ -366,9 +419,13 @@ export default function InteractiveAvatar() {
                 </ul>
               </div>
             </div>
-          </div>
-        </>
 
+          </div>
+          <AddSession
+            open={dialogOpen}
+            onClose={() => setDialogOpen(false)}
+          />
+        </>
       ) : !isLoadingSession ? (
         <div className="flex justify-center items-center min-h-screen bg-black">
           <div className="w-full flex flex-col gap-4 items-center">

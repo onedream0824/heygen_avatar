@@ -26,6 +26,7 @@
     "@phosphor-icons/react": "^2.1.5",
     "@react-aria/ssr": "3.9.4",
     "@react-aria/visually-hidden": "3.8.12",
+    "@supabase/supabase-js": "^2.45.3",
     "@uiw/codemirror-extensions-langs": "^4.22.1",
     "@uiw/react-codemirror": "^4.22.1",
     "ai": "^3.2.15",
