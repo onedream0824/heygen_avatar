@@ -301,7 +301,7 @@ export default function InteractiveAvatar() {
                 </div>
               </div>
               <div className="flex justify-center mb-4">
-                <Button className="bg-blue-600 text-white font-bold py-2 px-4 rounded-xl hover:bg-blue-800 transition duration-300 shadow-lg">
+                <Button className="bg-blue-600 text-white font-bold py-2 px-4 rounded-xl hover:bg-blue-800 transition duration-300 shadow-lg" onClick={addChannel}>
                   Add Session
                 </Button>
               </div>

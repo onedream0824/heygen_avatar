@@ -3,6 +3,8 @@ import { useAuth } from '@/app/hooks/useAuth';
 import { supabase } from '@/app/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const SignIn = () => {
     const [email, setEmail] = useState('');
@@ -23,7 +25,7 @@ const SignIn = () => {
             password,
         });
         if (error) {
-            console.error(error.message);
+            toast.error("Wrong credentials, please try again.");
         } else {
             router.push('/');
         }
@@ -31,6 +33,7 @@ const SignIn = () => {
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-black">
+            <ToastContainer />
             <div className="bg-gray-800 shadow-lg rounded-lg p-8 max-w-md w-full">
                 <h2 className="text-3xl font-bold text-center text-white mb-6">Sign In</h2>
                 <form onSubmit={handleSignIn}>

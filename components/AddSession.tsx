@@ -17,15 +17,15 @@ const AddSessionDialog: React.FC<AddSessionDialogProps> = ({ open, onClose }) =>
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg p-6 shadow-lg w-96">
-        <h2 className="text-lg font-semibold mb-4 text-black">Add Session</h2>
+    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-70">
+      <div className="bg-gray-900 rounded-lg p-6 shadow-lg w-96">
+        <h2 className="text-lg font-semibold mb-4 text-white">Add Session</h2>
         <form onSubmit={handleSubmit}>
           <input
             type="text"
             value={filterValue}
             onChange={(e) => setFilterValue(e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-2 w-full mb-4"
+            className="border border-gray-700 rounded-md px-3 py-2 w-full mb-4 bg-gray-800 text-white placeholder-gray-400"
             placeholder="Enter filter value"
             required
           />
@@ -33,13 +33,13 @@ const AddSessionDialog: React.FC<AddSessionDialogProps> = ({ open, onClose }) =>
             <button
               type="button"
               onClick={onClose}
-              className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md mr-2"
+              className="bg-gray-600 text-white px-4 py-2 rounded-md mr-2 hover:bg-gray-500 transition duration-200"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="bg-blue-500 text-white px-4 py-2 rounded-md"
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-500 transition duration-200"
             >
               Apply
             </button>
