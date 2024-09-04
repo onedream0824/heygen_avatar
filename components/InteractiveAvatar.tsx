@@ -368,22 +368,11 @@ export default function InteractiveAvatar() {
     }, []);
 
     useEffect(() => {
+        if (!currentChannelId)
+            return;
         fetchChatHistory(currentChannelId);
     }, [refreshStatus, currentChannelId]);
 
-    useEffect(() => {
-        async function init() {
-            const newToken = await fetchAccessToken();
-            avatar.current = new StreamingAvatarApi(
-                new Configuration({ accessToken: newToken, jitterBuffer: 200 })
-            );
-            setInitialized(true);
-        }
-        init();
-        return () => {
-            endSession();
-        };
-    }, []);
 
     useEffect(() => {
         if (stream && mediaStream.current) {
