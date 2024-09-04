@@ -19,6 +19,7 @@ import { useEffect, useRef, useState } from "react";
 import InteractiveAvatarTextInput from "./InteractiveAvatarTextInput";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import CountDownTimer from './CountDownTimer';
 
 
 interface Session {
@@ -46,7 +47,6 @@ export default function InteractiveAvatar() {
     const [debug, setDebug] = useState<string>();
     const [time, setTime] = useState(0);
     const [limitTime, setLimitTime] = useState<number>(660);
-    const [isTimerActive, setIsTimerActive] = useState<boolean>(true);
     const [voiceId, setVoiceId] = useState<string>("");
     const [data, setData] = useState<NewSessionData>();
     const [initialized, setInitialized] = useState(false);
@@ -61,7 +61,8 @@ export default function InteractiveAvatar() {
     const { user, loading, logout } = useAuth();
     const [sessionList, setSessionList] = useState<Session[]>([]);
     const [historyList, setHistoryList] = useState<Chat[]>([]);
-    const [firstTime, setFirstTime] = useState<boolean>(true);
+    const [firstTime, setFirstTime] = useState<boolean>(false);
+    const [timerStatus, setTimerStatus] = useState<string>('Running'); // Status of the timer
     const { input, setInput, handleSubmit } = useChat({
         onFinish: async (message: any) => {
             if (!initialized || !avatar.current) {
@@ -88,6 +89,11 @@ export default function InteractiveAvatar() {
             },
         ],
     });
+
+    const handleTimerComplete = () => {
+        setTimerStatus('Completed');
+        setFirstTime(false);
+    };
 
     async function fetchAccessToken() {
         try {
@@ -149,18 +155,6 @@ export default function InteractiveAvatar() {
         setInitialized(true);
     }
 
-    async function endSession() {
-        if (!initialized || !avatar.current) {
-            setDebug("Avatar API not initialized");
-            return;
-        }
-        await avatar.current.stopAvatar(
-            { stopSessionRequest: { sessionId: data?.sessionId } },
-            setDebug
-        );
-        setStream(undefined);
-    }
-
     async function saveChat(chat: string, type: boolean) {
         try {
             const { data, error } = await supabase
@@ -192,42 +186,6 @@ export default function InteractiveAvatar() {
             console.error('Error fetching sessions:', error);
         } finally {
             setGetChannelLoading(false);
-        }
-    };
-
-    const updateTime = async (time = 60) => {
-        try {
-            const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-            if (sessionError) throw sessionError;
-            const user_id = sessionData.session?.user.id;
-            if (!user_id) {
-                throw new Error('User not logged in');
-            }
-            const { data: fetchData, error: fetchError } = await supabase
-                .from('users')
-                .select('time')
-                .eq('id', user_id)
-                .single();
-            if (fetchError) throw fetchError;
-            const currentTime = fetchData?.time;
-            if (currentTime === undefined) {
-                throw new Error('Time value not found');
-            }
-            const newTime = currentTime - time;
-            const { data: updateData, error: updateError } = await supabase
-                .from('users')
-                .update({ time: newTime })
-                .eq('id', user_id);
-            if (updateError) throw updateError;
-            setLimitTime(newTime);
-            if (newTime <= 0) {
-                toast.error("Time has reached 0, You can not use this.");
-                setIsTimerActive(false);
-            }
-        } catch (error) {
-            console.error('Error updating time:', error);
-        } finally {
-            console.log("Update operation completed");
         }
     };
 
@@ -335,17 +293,29 @@ export default function InteractiveAvatar() {
         }
     };
 
-    useEffect(() => {
-        if (!recording)
-            return;
-        if (!input)
-            return;
-        handleSubmit()
-    }, [input]);
+    async function submit() {
+        if (limitTime > 0) {
+            setFirstTime(true);
+            if (!input) {
+                setDebug("Please enter text to send to ChatGPT");
+                return;
+            }
+
+            if (checkLimitTime() == true) {
+                setIsLoadingChat(true);
+                await saveChat(input, true);
+                setRefreshStatus(!refreshStatus);
+                handleSubmit();
+            }
+        }
+        else {
+            toast.error("The free version was runned out.");
+            console.log(checkLimitTime());
+        }
+    }
 
     useEffect(() => {
         let timerInterval: NodeJS.Timeout | null = null;
-        setFirstTime(false);
         if (recording) {
             timerInterval = setInterval(() => {
                 setTime(oldTime => oldTime + 1);
@@ -385,18 +355,27 @@ export default function InteractiveAvatar() {
     }, [mediaStream, stream]);
 
     useEffect(() => {
-        if (firstTime) {
-            return;
-        }
+        const fetchUserTime = async () => {
+            const userId = (await supabase.auth.getSession()).data.session?.user.id;
+            if (userId) {
+                const { data: userData, error: userError } = await supabase
+                    .from('users')
+                    .select('time')
+                    .eq('id', userId)
+                    .single();
 
-        const interval_id = setInterval(() => {
-            updateTime();
-            if (!isTimerActive) {
-                clearInterval(interval_id);
+                if (userError) {
+                    console.error('Error fetching user time:', userError);
+                } else if (userData) {
+                    setLimitTime(userData.time); // Set the user's time from the database
+                }
             }
-        }, 60000)
+        };
 
-    }, [firstTime])
+        if (firstTime) {
+            fetchUserTime(); // Fetch user time if firstTime is true
+        }
+    }, [firstTime]);
 
 
     return (
@@ -408,7 +387,7 @@ export default function InteractiveAvatar() {
                         <div className="w-full md:w-[18%] h-full flex-shrink-0 bg-black text-white">
                             <div className="w-full h-[20%] flex text-left justify-center">
                                 <div className="m-auto w-full">
-                                    <p className="text-4xl font-bold">9:50</p>
+                                    <CountDownTimer isActive={firstTime} limitTime={limitTime} setLimitTime={setLimitTime} onTimerComplete={handleTimerComplete} />
                                     <p className="text-2xl italic">buy more time</p>
                                 </div>
                             </div>
@@ -505,22 +484,7 @@ export default function InteractiveAvatar() {
                                     placeholder="Chat with the avatar (uses ChatGPT)"
                                     input={input}
                                     onSubmit={async () => {
-                                        setFirstTime(false);
-                                        if (!input) {
-                                            setDebug("Please enter text to send to ChatGPT");
-                                            return;
-                                        }
-                                        if (checkLimitTime() == true) {
-                                            setIsLoadingChat(true);
-                                            await saveChat(input, true);
-                                            setRefreshStatus(!refreshStatus);
-                                            handleSubmit();
-                                            console.log(checkLimitTime());
-                                        }
-                                        else {
-                                            toast.error("The free version was runned out.");
-                                            console.log(checkLimitTime());
-                                        }
+                                        submit();
                                     }}
 
                                     setInput={setInput}
